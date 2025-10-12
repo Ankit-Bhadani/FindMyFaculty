@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'faculty_info_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -252,16 +253,37 @@ class _HomeScreenState extends State<HomeScreen> {
               items: items.map((String item) {
                 return DropdownMenuItem<String>(
                   value: item,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.indigo[900],
-                        fontWeight: FontWeight.w500,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            item,
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.indigo[900],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      if (item == value) // Only show info button for selected item
+                        IconButton(
+                          icon: const Icon(Icons.info_outline),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FacultyInfoScreen(
+                                  teacherName: item,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
                   ),
                 );
               }).toList(),
@@ -299,9 +321,63 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          // Faculty Info Button
+          IconButton(
+            icon: Icon(Icons.people,
+                color: isDarkMode ? Colors.amber : Colors.indigo),
+            tooltip: 'Faculty Information',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: isDarkMode ? Colors.indigo[900] : Colors.white,
+                  title: Text(
+                    'Select Faculty',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.indigo[900],
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: teachers.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          leading: Icon(
+                            Icons.person,
+                            color: isDarkMode ? Colors.amber : Colors.indigo,
+                          ),
+                          title: Text(
+                            teachers[index],
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.indigo[900],
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FacultyInfoScreen(
+                                  teacherName: teachers[index],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Theme Toggle Button
           IconButton(
             icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode,
                 color: isDarkMode ? Colors.amber : Colors.indigo),
+            tooltip: 'Toggle Theme',
             onPressed: () {
               setState(() {
                 isDarkMode = !isDarkMode;
