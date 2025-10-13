@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
-import 'screens/faculty_info_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {

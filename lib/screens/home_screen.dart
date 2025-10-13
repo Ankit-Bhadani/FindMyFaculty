@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'faculty_info_screen.dart';
+import 'faculty_info_screen.dart'; // Import your faculty info screen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,7 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   
   // Firebase Database Reference
-  final DatabaseReference _databaseRef = FirebaseDatabase.instance.refFromURL('https://teacherlocater-default-rtdb.asia-southeast1.firebasedatabase.app/');
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   
   // Timetable Variables
   String? selectedTeacher;
@@ -23,6 +24,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isDarkMode = false;
   bool isLoading = false;
   
+  // Drawer state
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  
+  // View mode
+  String currentView = 'Timetable';
+
   // Lists to be populated from Firebase
   List<String> teachers = [];
   List<String> times = ['8:00 - 9:00', '9:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 1:00', '1:00 - 2:00', '2:00 - 3:00', '3:00 - 4:00'];
@@ -46,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Initialize Firebase
   Future<void> _initializeFirebase() async {
     try {
+      await Firebase.initializeApp();
       _loadTeachersFromFirebase();
     } catch (e) {
       print("Firebase initialization error: $e");
@@ -83,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint("Error loading teachers: $e");
+      print("Error loading teachers: $e");
       setState(() {
         teachers = ['Mr. Sharma', 'Ms. Gupta', 'Mr. Khan', 'Prof. Verma', 'Mrs. Singh'];
       });
@@ -142,55 +150,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Filter by selected time if specified
         if (selectedTime != null) {
-          final filteredClasses = classes.where((lec) => lec['time'] == selectedTime);
-          if (mounted) {
-            setState(() {
-              timetableResult = filteredClasses.toList();
-            });
-            
-            if (filteredClasses.isEmpty) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No lecture found for that time')),
-                );
-              }
-            }
+          final filteredClasses = classes.where((lec) => lec['time'] == selectedTime).toList();
+          setState(() {
+            timetableResult = filteredClasses;
+          });
+          
+          if (filteredClasses.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No lecture found for that time')),
+            );
           }
         } else {
-          if (mounted) {
-            setState(() {
-              timetableResult = classes;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No classes found for this day')),
-          );
-        }
-        if (mounted) {
           setState(() {
-            timetableResult = [];
+            timetableResult = classes;
           });
         }
-      }
-    } catch (e) {
-      debugPrint("Error loading timetable: $e");
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading data: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+          const SnackBar(content: Text('No classes found for this day')),
         );
-      }
-    } finally {
-      if (mounted) {
         setState(() {
-          isLoading = false;
+          timetableResult = [];
         });
       }
+    } catch (e) {
+      print("Error loading timetable: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading data: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -203,16 +197,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // ignore: unused_element
   void _showSnackBar(String msg) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.indigo,
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.indigo,
+      ),
+    );
+  }
+
+  void _openFacultyInfoScreen() {
+    _scaffoldKey.currentState?.closeDrawer();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FacultyInfoScreen(isDarkMode: isDarkMode),
+      ),
+    );
   }
 
   Widget _buildDropdown(String label, String? value, List<String> items, ValueChanged<String?> onChanged) {
@@ -253,37 +254,16 @@ class _HomeScreenState extends State<HomeScreen> {
               items: items.map((String item) {
                 return DropdownMenuItem<String>(
                   value: item,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            item,
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.indigo[900],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      item,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.indigo[900],
+                        fontWeight: FontWeight.w500,
                       ),
-                      if (item == value) // Only show info button for selected item
-                        IconButton(
-                          icon: const Icon(Icons.info_outline),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FacultyInfoScreen(
-                                  teacherName: item,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 );
               }).toList(),
@@ -292,6 +272,213 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // Build the beautiful drawer
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: isDarkMode ? Colors.indigo[900] : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(
+          right: Radius.circular(25),
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDarkMode
+                ? [Colors.indigo[900]!, Colors.purple[900]!]
+                : [Colors.indigo[50]!, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            // Drawer Header
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode
+                      ? [Colors.indigo[700]!, Colors.purple[700]!]
+                      : [Colors.indigo, Colors.purple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomRight: Radius.circular(25),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 20,
+                    left: 20,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        _scaffoldKey.currentState?.closeDrawer();
+                      },
+                    ),
+                  ),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Icon(
+                            Icons.school,
+                            color: Colors.white,
+                            size: 35,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Faculty Timetable',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage Your View',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Drawer Items
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  children: [
+                    // Change View Section
+                    _buildDrawerItem(
+                      icon: Icons.dashboard,
+                      title: 'Change View',
+                      subtitle: 'Switch between different layouts',
+                      isSelected: true,
+                      onTap: _openFacultyInfoScreen,
+                    ),
+
+                    const Spacer(),
+
+                    // App Info
+                    Container(
+                      margin: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.indigo[800] : Colors.indigo[100],
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '📚 Faculty Timetable',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : Colors.indigo[900],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Easily manage and view teacher schedules with beautiful interfaces',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDarkMode ? Colors.white70 : Colors.indigo[700],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? (isDarkMode ? Colors.indigo[700] : Colors.indigo[100])
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        border: isSelected
+            ? Border.all(color: isDarkMode ? Colors.amber : Colors.indigo, width: 2)
+            : null,
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 45,
+          height: 45,
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.indigo[600] : Colors.indigo[50],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: isDarkMode ? Colors.amber : Colors.indigo,
+          ),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode ? Colors.white : Colors.indigo[900],
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: isDarkMode ? Colors.white70 : Colors.indigo[600],
+            fontSize: 12,
+          ),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          color: isDarkMode ? Colors.white54 : Colors.indigo[400],
+          size: 16,
+        ),
+        onTap: onTap,
+      ),
     );
   }
 
@@ -306,11 +493,37 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return Scaffold(
+      key: _scaffoldKey,
       resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
+      drawer: _buildDrawer(),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.indigo[800] : Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.menu,
+              color: isDarkMode ? Colors.amber : Colors.indigo,
+            ),
+          ),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         title: Text(
           'Faculty Timetable',
           style: TextStyle(
@@ -321,63 +534,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Faculty Info Button
           IconButton(
-            icon: Icon(Icons.people,
-                color: isDarkMode ? Colors.amber : Colors.indigo),
-            tooltip: 'Faculty Information',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: isDarkMode ? Colors.indigo[900] : Colors.white,
-                  title: Text(
-                    'Select Faculty',
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.white : Colors.indigo[900],
-                    ),
+            icon: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.indigo[800] : Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: teachers.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          leading: Icon(
-                            Icons.person,
-                            color: isDarkMode ? Colors.amber : Colors.indigo,
-                          ),
-                          title: Text(
-                            teachers[index],
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.indigo[900],
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FacultyInfoScreen(
-                                  teacherName: teachers[index],
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          // Theme Toggle Button
-          IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: isDarkMode ? Colors.amber : Colors.indigo),
-            tooltip: 'Toggle Theme',
+                ],
+              ),
+              child: Icon(
+                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: isDarkMode ? Colors.amber : Colors.indigo,
+              ),
+            ),
             onPressed: () {
               setState(() {
                 isDarkMode = !isDarkMode;
@@ -483,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                           side: BorderSide(
                                             color: isDarkMode ? Colors.indigo[600]! : Colors.indigo,
-                                            width: 2.0,
+                                            width: 2,
                                           ),
                                         ),
                                         child: Row(
@@ -611,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(height: 16),
                                 ...timetableResult.map((lec) => Card(
                                   elevation: 2,
-                                  margin: const EdgeInsets.only(bottom: 12.0),
+                                  margin: const EdgeInsets.only(bottom: 12),
                                   color: isDarkMode ? Colors.indigo[700] : Colors.white,
                                   child: ListTile(
                                     leading: Container(
@@ -720,5 +896,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-// In this version now timetable is added to the firebase 
