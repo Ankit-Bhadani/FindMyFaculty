@@ -49,12 +49,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // Load timetable data from Firebase
   Future<void> showTimetable() async {
     if (selectedTeacher == null || selectedTimetableDay == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both Teacher and Day'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select both Teacher and Day'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
       return;
     }
 
@@ -77,9 +79,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final snapshot = await query.get();
 
       if (snapshot.docs.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('No classes found')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No classes found')),
+          );
+        }
       } else {
         final results = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -90,21 +94,27 @@ class _HomeScreenState extends State<HomeScreen> {
           };
         }).toList();
 
-        setState(() {
-          timetableResult = results;
-        });
+        if (mounted) {
+          setState(() {
+            timetableResult = results;
+          });
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading timetable: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading timetable: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -118,11 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showSnackBar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.indigo),
-    );
-  }
+
 
   void _openFacultyInfoScreen() {
     _scaffoldKey.currentState?.closeDrawer();
@@ -257,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           height: 70,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(51),
                             border: Border.all(color: Colors.white, width: 2),
                           ),
                           child: Icon(
@@ -279,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Manage Your View',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withAlpha(204),
                             fontSize: 14,
                           ),
                         ),
@@ -446,11 +452,11 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: isDarkMode
                   ? Colors.indigo[800]
-                  : Colors.white.withOpacity(0.9),
+                  : Colors.white.withAlpha(230),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withAlpha(26),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -482,11 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: isDarkMode
                     ? Colors.indigo[800]
-                    : Colors.white.withOpacity(0.9),
+                    : Colors.white.withAlpha(230),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha(26),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -525,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                         color: isDarkMode ? Colors.indigo[900] : Colors.white,
-                        shadowColor: Colors.indigo.withOpacity(0.3),
+                        shadowColor: Colors.indigo.withAlpha(77),
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Column(
@@ -678,7 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 28),
 
                               // Action Buttons - FIXED WITH SHORTER TEXT
-                              Container(
+                              SizedBox(
                                 height: 56,
                                 child: Row(
                                   children: [
@@ -746,8 +752,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                           ),
                                           elevation: 4,
-                                          shadowColor: Colors.indigo
-                                              .withOpacity(0.3),
+                                          shadowColor: Colors.indigo.withAlpha(77),
                                         ),
                                         child: isLoading
                                             ? SizedBox(
@@ -855,8 +860,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                ...timetableResult
-                                    .map(
+                                ...timetableResult.map(
                                       (lec) => Card(
                                         elevation: 2,
                                         margin: const EdgeInsets.only(
@@ -926,8 +930,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                       ),
-                                    )
-                                    .toList(),
+                                    ),
                               ] else if (selectedTeacher != null &&
                                   selectedTimetableDay != null &&
                                   !isLoading) ...[
